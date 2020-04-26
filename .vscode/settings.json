@@ -1,0 +1,11 @@
+{
+    "liveServer.settings.port": 5501,
+    "liveServer.settings.root": "/",
+    "liveServer.settings.CustomBrowser": "chrome",
+    "liveServer.settings.https": {
+      "enable": true,
+      "cert": "E:/webrtcdemo/https/localhost.pem",
+      "key": "E:/webrtcdemo:/https/localhost.key",
+      "passphrase": "12345"
+    }
+  }

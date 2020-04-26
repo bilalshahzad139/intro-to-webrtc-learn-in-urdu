@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <title>WebRTC Demo</title>
+
+    <script src="../scripts/jquery-3.4.1.min.js"></script>
+    <script src="demo.js"></script>
+
+    <script>
+        $(function () {
+            Demo.init();
+        });
+    </script>
+</head>
+<body>
+    
+    <audio autoplay muted controls id="audioCtr"></audio>
+    <button id="btnMuteUnmute">Mute</button>
+    <button id="btnStartReco">Start Recording</button>
+    <button id="btnPauseReco" style="display:none">Pause</button>
+    <button id="btnResumeReco" style="display:none">Resume</button>
+    <button id="btnStopReco" style="display:none">Stop</button>
+    <a href="" id="downloadRecording" style="display:none">Download</a>
+    
+    <br>
+    <br>
+    <a href="../index.html">Home</a>
+</body>
+</html>
