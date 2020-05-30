@@ -421,7 +421,7 @@ var Demo = (function () {
                 _remoteStream = new MediaStream();
 
             if (event.streams.length > 0) {
-                ;
+                
                 //_remoteStream = event.streams[0];
             }
 
