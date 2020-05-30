@@ -4,8 +4,8 @@
     "liveServer.settings.CustomBrowser": "chrome",
     "liveServer.settings.https": {
       "enable": true,
-      "cert": "E:/webrtcdemo/https/localhost.pem",
-      "key": "E:/webrtcdemo:/https/localhost.key",
+      "cert": "E:/Trainings/WebRTC/webrtcdemo/https/localhost.pem",
+      "key": "E:/Trainings/WebRTC/webrtcdemo/https/localhost.key",
       "passphrase": "12345"
     }
   }

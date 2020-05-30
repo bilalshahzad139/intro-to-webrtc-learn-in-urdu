@@ -13,12 +13,7 @@ var Demo = (function () {
 
     var _rtpSender;
 
-    // Set up the SignalR connection
-    var hub = $.connection.webRtcHub;
-    $.connection.hub.url = 'https://localhost:44338/signalr/hubs';
-    $.connection.hub.start(function () {
-        console.log('connected to signal server.');
-    });
+    var socket = io.connect('http://localhost:3000');
 
     async function _init() {
 
@@ -338,7 +333,7 @@ var Demo = (function () {
         }
     }
 
-    hub.client.newMessage = async function (message) {
+    socket.on("new_message1", async function (message) {
         console.log('messag', message);
         message = JSON.parse(message);
 
@@ -362,7 +357,8 @@ var Demo = (function () {
                     }
                 }
                 else {
-                    hub.server.send(JSON.stringify({ 'rejected': 'true' }));
+                    
+                    socket.emit('new_message1',JSON.stringify({ 'rejected': 'true' }));
                 }
             }
             if (_audioTrack) {
@@ -374,7 +370,7 @@ var Demo = (function () {
                 await connection.setRemoteDescription(new RTCSessionDescription(message.offer));
                 var answer = await connection.createAnswer();
                 await connection.setLocalDescription(answer);
-                hub.server.send(JSON.stringify({ 'answer': answer }));
+                socket.emit('new_message1',JSON.stringify({ 'answer': answer }));
             }
         }
         else if (message.iceCandidate) {
@@ -388,7 +384,7 @@ var Demo = (function () {
                 console.log(e);
             }
         }
-    }
+    });
 
     async function _createConnection() {
 
@@ -398,7 +394,7 @@ var Demo = (function () {
         connection.onicecandidate = function (event) {
             console.log('onicecandidate', event.candidate);
             if (event.candidate) {
-                hub.server.send(JSON.stringify({ 'iceCandidate': event.candidate }));
+                socket.emit('new_message1',JSON.stringify({ 'iceCandidate': event.candidate }));
             }
         }
         connection.onicecandidateerror = function (event) {
@@ -420,12 +416,12 @@ var Demo = (function () {
         // New remote media stream was added
         connection.ontrack = function (event) {
 
-            debugger
+            
             if (!_remoteStream)
                 _remoteStream = new MediaStream();
 
             if (event.streams.length > 0) {
-                debugger;
+                ;
                 //_remoteStream = event.streams[0];
             }
 
@@ -446,7 +442,7 @@ var Demo = (function () {
             //newVideoElement.play();
         };
 
-        debugger;
+        
         if (_videoTrack) {
             _rtpSender = connection.addTrack(_videoTrack);
         }
@@ -467,7 +463,7 @@ var Demo = (function () {
         console.log('offer', offer);
         console.log('localDescription', connection.localDescription);
         //Send offer to Server
-        hub.server.send(JSON.stringify({ 'offer': connection.localDescription }));
+        socket.emit('new_message1',JSON.stringify({ 'offer': connection.localDescription }));
     }
 
     return {
