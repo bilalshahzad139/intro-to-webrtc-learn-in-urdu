@@ -420,12 +420,12 @@ var Demo = (function () {
         // New remote media stream was added
         connection.ontrack = function (event) {
 
-            debugger
+           
             if (!_remoteStream)
                 _remoteStream = new MediaStream();
 
             if (event.streams.length > 0) {
-                debugger;
+                
                 //_remoteStream = event.streams[0];
             }
 
@@ -446,7 +446,7 @@ var Demo = (function () {
             //newVideoElement.play();
         };
 
-        debugger;
+        
         if (_videoTrack) {
             _rtpSender = connection.addTrack(_videoTrack);
         }
@@ -462,6 +462,7 @@ var Demo = (function () {
     }
 
     async function _createOffer() {
+        debugger;
         var offer = await connection.createOffer();
         await connection.setLocalDescription(offer);
         console.log('offer', offer);

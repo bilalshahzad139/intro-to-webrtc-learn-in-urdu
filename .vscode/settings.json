@@ -5,7 +5,7 @@
     "liveServer.settings.https": {
       "enable": true,
       "cert": "E:/webrtcdemo/https/localhost.pem",
-      "key": "E:/webrtcdemo:/https/localhost.key",
+      "key": "E:/webrtcdemo/https/localhost.key",
       "passphrase": "12345"
     }
   }
