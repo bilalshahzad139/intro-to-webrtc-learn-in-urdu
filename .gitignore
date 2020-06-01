@@ -2,3 +2,5 @@
 /SignalingServer/packages
 /SignalingServer/SignalingServer/bin
 /SignalingServer/SignalingServer/obj
+/SignalingServer/node_modules
+/SignalingServer/package-lock.json

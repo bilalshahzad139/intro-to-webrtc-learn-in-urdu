@@ -26,7 +26,11 @@ This folder contains demo of how to create RTCConnection and share metadata with
 
 # signalingServer
 
-This folder contains ASP.NET SignalR project which is being used as 'signaling server' for RTC Demo. You may use any websocket implementation instead.
+This folder contains NodeJS Project. 
+1) Install NodeJS
+2) Go to this folder 
+3) npm install 
+4) npm run 
 
 # https
 

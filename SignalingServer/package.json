@@ -1,0 +1,14 @@
+{
+  "name": "signalingserver",
+  "version": "1.0.0",
+  "description": "sample signaling server for webrtc demo",
+  "main": "app.js",
+  "scripts": {
+    "start": "nodemon app"
+  },
+  "dependencies": {
+    "express": "^4.16.2",
+    "nodemon": "^1.14.3",
+    "socket.io": "^2.0.4"
+  }
+}
