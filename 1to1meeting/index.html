@@ -7,24 +7,25 @@
         .userbox {
             margin-left: 20px;
             padding: 8px;
-            width:450px;
+            width: 450px;
             /* height:366px; */
             border: 1px solid transparent;
             color: var(--fc-medium);
             border-color: var(--powder-400);
             background-color: burlywood;
-            float:left;
+            float: left;
         }
-        .userbox  video {
-            display: inline-block;
-            border:1px solid red;
-            margin:0;
-            padding:0; 
-            width:450px;
-            height:300px; 
-        }
-        .toolbox{
-            
+
+            .userbox video {
+                display: inline-block;
+                border: 1px solid red;
+                margin: 0;
+                padding: 0;
+                width: 450px;
+                height: 300px;
+            }
+
+        .toolbox {
         }
     </style>
     <meta name="viewport" content="width=device-width" />
@@ -34,9 +35,9 @@
 
     <script src="jquery-3.4.1.min.js"></script>
     <script src="jquery.signalR-2.2.2.min.js"></script>
-    <!-- <script src="https://webrtcss.azurewebsites.net/signalr/hubs"></script> -->
-    <script src="https://localhost:44338/signalr/hubs"></script>
-    <script src="video-stream-merger.js"></script>
+     <script src="https://webrtcss.azurewebsites.net/signalr/hubs"></script> 
+    <!--<script src="https://localhost:44338/signalr/hubs"></script>-->
+    <!--<script src="video-stream-merger.js"></script>-->
     <script src="demo.js"></script>
 
     <script>
@@ -46,76 +47,45 @@
             const urlParams = new URLSearchParams(window.location.search);
             const user_id = urlParams.get('uid');
             const meeting_id = urlParams.get('mid');
-            if(user_id == null || meeting_id == null){
+            if (user_id == null || meeting_id == null) {
                 alert('user id or meeting id missing');
                 return;
             }
             $('#meetingname').text(meeting_id);
+            $('#me h2').text(user_id + '(Me)');
 
             // Set up the SignalR connection
             $.connection.hub.logging = true;
             var hub = $.connection.webRtcHub;
-            $.connection.hub.url = 'https://localhost:44338/signalr/hubs';
-            //$.connection.hub.url = 'https://webrtcss.azurewebsites.net/signalr/hubs';
+            //$.connection.hub.url = 'https://localhost:44338/signalr/hubs';
+            $.connection.hub.url = 'https://webrtcss.azurewebsites.net/signalr/hubs';
 
-            var serverFn = function(data){
+            var serverFn = function (data) {
                 hub.server.send(data);
             };
 
-            hub.client.newMessage = async function(data){
+            hub.client.newMessage = async function (data) {
                 await Demo.ExecuteClientFn(data);
             };
 
-            hub.client.informAboutUsers = function(users){
-                
-                $('#divUsers').empty();
-                for(var i=0;i<users.length;i++){
+            hub.client.informAboutUsers = function (other_user_id) {
 
-                    var $userBox = $("<div>").addClass('userbox');
-
-                    var txt = users[i];
-                    if(user_id == users[i])
-                    {
-                        txt = users[i] + " (Me)"
-                    }
-                    var $sp = $("<h2>").text(txt);
-                    $userBox.append($sp);
-
-                    if(user_id == users[i])
-                    {
-                        var localVideo = $("<video autoplay muted >").attr("id","localVideoCtr");//.attr('width','480').attr('height','200');
-                        localVideo.hide();
-                        var div = $('<div>');
-                        div.append(localVideo);
-                        $userBox.append(div);
-                    }
-                    else {
-                        var remoteVideo = $("<video autoplay muted >").attr("id","remoteVideoCtr");//.attr('width','480').attr('height','100');
-                        remoteVideo.hide();
-                        var div = $('<div>');
-                        div.append(remoteVideo);
-                        $userBox.append(div);
-                    }
-
-                    $('#divUsers').append($userBox);
-                }
-
-                Demo._initVideoCtrl();
-                
-                if(users && users.length > 1 && connection_initiated == false){
-                    connection_initiated = true;
-                    Demo._initiateFirstConn();
-                }
+                $('#other h2').text(other_user_id);
             };
 
             $.connection.hub.start(function () {
                 console.log('connected to signal server.');
-            }).done(function(){
-                if(user_id != "" && meeting_id != ""){
-                    hub.server.connect(user_id,meeting_id);
+            }).done(function () {
+                if (user_id != "" && meeting_id != "") {
+                    hub.server.connect(user_id, meeting_id).done(function (other_user) {
+                        if (other_user) {
+                            $('#other h2').text(other_user.user_id);
+                            Demo._initiateFirstConn();
+                        }
+                    });
                 }
             });
-            
+
 
             Demo.init(serverFn);
         });
@@ -124,7 +94,20 @@
 <body>
     <h1 id='meetingname'></h1>
     <div id='divUsers'>
-
+        <div id="me" class="userbox">
+            <h2></h2>
+            <div>
+                <video autoplay muted id="localVideoCtr" />
+            </div>
+        </div>
+        <div id="other" class="userbox">
+            <h2></h2>
+            <div>
+                <video autoplay muted id="remoteVideoCtr" />
+            </div>
+        </div>
+        <!--<audio autoplay controls id="localAudioCtr" ></audio>-->
+        <audio autoplay controls style="display:none" id="remoteAudioCtr" ></audio>
     </div>
     <div style="clear: both;"></div>
     <div class="toolbox">
@@ -135,20 +118,16 @@
 
     <!-- <video autoplay muted controls id="videoCtr" width="480" height="100"></video> -->
     <!-- <video autoplay muted controls id="remoteVideoCtr" width="480" height="100"></video> -->
-    <video autoplay muted controls id="videoCtrRec" width="100" height="100" style="display:none"></video>
-
+    <!--<video autoplay muted controls id="videoCtrRec" width="100" height="100" style="display:none"></video>-->
     <!-- <button id="startConnection">Start Connection</button> -->
-
-    
-    <button id="btnStartReco">Start Recording</button>
+    <!--<button id="btnStartReco">Start Recording</button>
     <button id="btnPauseReco" style="display:none">Pause</button>
     <button id="btnResumeReco" style="display:none">Resume</button>
     <button id="btnStopReco" style="display:none">Stop</button>
 
-    <a href="" id="downloadRecording" style="display:none">Download</a>
-
+    <a href="" id="downloadRecording" style="display:none">Download</a>-->
+    <!--<br>
     <br>
-    <br>
-    <a href="../index.html">Home</a>
+    <a href="../index.html">Home</a>-->
 </body>
 </html>
