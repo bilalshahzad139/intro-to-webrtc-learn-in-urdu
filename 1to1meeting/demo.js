@@ -1,10 +1,8 @@
 var Demo = (function () {
     var _audioTrack;
-    var _videoTrack = null;
-    var _screenTrack = null;
 
     var connection = null;
-    var _removeVideoStream = new MediaStream();
+    var _remoteVideoStream = new MediaStream();
     var _remoteAudioStream = new MediaStream();
 
     var _localVideoPlayer;
@@ -17,6 +15,8 @@ var Demo = (function () {
 
     var VideoStates = { None: 0, Camera: 1, ScreenShare: 2 };
     var _videoState = VideoStates.None;
+    var _videoCamSSTrack;
+    var _isAudioMute = true;
 
     async function _init(serFn) {
 
@@ -35,103 +35,132 @@ var Demo = (function () {
             if (!_audioTrack) {
                 await startwithAudio();
             }
-            else {
-
-                if (!_rtpAudioSender && _audioTrack && connection)
-                    _rtpAudioSender = connection.addTrack(_audioTrack);
-            }
 
             if (!_audioTrack) {
                 alert('problem with audio permission')
                 return;
             }
 
-            if (_audioTrack.enabled == false) {
+            if (_isAudioMute) {
                 _audioTrack.enabled = true;
                 $(this).text("Mute");
+                if (!_rtpAudioSender && _audioTrack && IsConnectionAvailable())
+                    _rtpAudioSender = connection.addTrack(_audioTrack);
             }
             else {
                 _audioTrack.enabled = false;
                 $(this).text("Unmute");
+
+                if (_rtpAudioSender && IsConnectionAvailable()) {
+                    connection.removeTrack(_rtpAudioSender);
+                    _rtpAudioSender = null;
+                }
             }
+            _isAudioMute = !_isAudioMute;
+
             console.log(_audioTrack);
         });
         $("#btnStartStopCam").on('click', async function () {
 
-            if (_videoTrack) {
-                _videoTrack.stop();
-                _videoTrack = null;
-                _localVideoPlayer.srcObject = null;
-                $(_localVideoPlayer).hide();
-                $("#btnStartStopCam").text("Start Camera");
-
-                if (_rtpVideoSender && connection) {
-                    connection.removeTrack(_rtpVideoSender);
-                    _rtpVideoSender = null;
-                }
-
-                return;
+            if (_videoState == VideoStates.Camera) { //Stop case
+                await ManageVideo(VideoStates.None);
             }
-            try {
-                var vstream = await navigator.mediaDevices.getUserMedia({
+            else {
+                await ManageVideo(VideoStates.Camera);
+            }
+        });
+        $("#btnStartStopScreenshare").on('click', async function () {
+
+            if (_videoState == VideoStates.ScreenShare) { //Stop case
+                await ManageVideo(VideoStates.None);
+            }
+            else {
+                await ManageVideo(VideoStates.ScreenShare);
+            }
+        });
+    }
+    //Camera or Screen Share or None
+    async function ManageVideo(_newVideoState) {
+
+        if (_videoCamSSTrack) {
+            _videoCamSSTrack.stop();
+            _videoCamSSTrack = null;
+            _localVideoPlayer.srcObject = null;
+            $(_localVideoPlayer).hide();
+
+            if (_rtpVideoSender && IsConnectionAvailable()) {
+                connection.removeTrack(_rtpVideoSender);
+                _rtpVideoSender = null;
+            }
+        }
+
+        if (_newVideoState == VideoStates.None) {
+            $("#btnStartStopCam").text('Start Camera');
+            $("#btnStartStopScreenshare").text('Screen Share');
+            _videoState = _newVideoState;
+            return;
+        }
+
+        try {
+            var vstream = null;
+
+            if (_newVideoState == VideoStates.Camera) {
+                vstream = await navigator.mediaDevices.getUserMedia({
                     video: {
                         width: 720,
                         height: 480
                     },
                     audio: false
                 });
-                if (vstream && vstream.getVideoTracks().length > 0) {
-                    _videoTrack = vstream.getVideoTracks()[0];
-                    setLocalVideo(true);
-                    //_localVideoPlayer.srcObject = new MediaStream([_videoTrack]);
-                    $("#btnStartStopCam").text("Stop Camera");
-                }
-            } catch (e) {
-                console.log(e);
-                return;
             }
-        });
-        $("#btnStartStopScreenshare").on('click', async function () {
-
-            if (_screenTrack) {
-                _screenTrack.stop();
-                _screenTrack = null;
-                _localVideoPlayer.srcObject = null;
-                $(_localVideoPlayer).hide();
-                $(this).text("Screen Share");
-
-                if (_rtpVideoSender && connection) {
-                    connection.removeTrack(_rtpVideoSender);
-                    _rtpVideoSender = null;
-                }
-                return;
-            }
-            try {
-                var sc_stream = await navigator.mediaDevices.getDisplayMedia({
-                    audio: false,
+            else if (_newVideoState == VideoStates.ScreenShare) {
+                vstream = await navigator.mediaDevices.getDisplayMedia({
                     video: {
                         width: 720,
-                        height: 480,
-                        frameRate: 1,
+                        height: 480
                     },
+                    audio: false
                 });
-                if (sc_stream && sc_stream.getVideoTracks().length > 0) {
-                    _screenTrack = sc_stream.getVideoTracks()[0];
-                    setLocalVideo(false);
-                    $(this).text("Stop Share");
-                }
-            } catch (e) {
-                console.log(e);
-                return;
             }
-        });
+
+            _videoState = _newVideoState;
+
+            if (_newVideoState == VideoStates.Camera) {
+                $("#btnStartStopCam").text('Stop Camera');
+                $("#btnStartStopScreenshare").text('Screen Share');
+            }
+            else if (_newVideoState == VideoStates.ScreenShare) {
+                $("#btnStartStopCam").text('Start Camera');
+                $("#btnStartStopScreenshare").text('Stop Screen Share');
+            }
+
+            if (vstream && vstream.getVideoTracks().length > 0) {
+                _videoCamSSTrack = vstream.getVideoTracks()[0];
+
+                if (_videoCamSSTrack) {
+                    _localVideoPlayer.srcObject = new MediaStream([_videoCamSSTrack]);
+                    $(_localVideoPlayer).show();
+
+                    if (IsConnectionAvailable()) {
+                        if (_rtpVideoSender && _rtpVideoSender.track) {
+                            _rtpVideoSender.replaceTrack(_videoCamSSTrack);
+                        }
+                        else {
+                            _rtpVideoSender = connection.addTrack(_videoCamSSTrack);
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            console.log(e);
+            return;
+        }
     }
 
     async function startwithAudio() {
 
         try {
             var astream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
-            //_localAudioPlayer.srcObject = astream;
             _audioTrack = astream.getAudioTracks()[0];
 
             _audioTrack.onmute = function (e) {
@@ -149,48 +178,16 @@ var Demo = (function () {
         }
     }
 
-    function setLocalVideo(isVideo) {
-        var currtrack;
+    async function _checkAndCreateConnection() {
 
-        if (isVideo) {
-            if (_screenTrack)
-                $("#btnStartStopScreenshare").trigger('click');
-
-            if (_videoTrack) {
-                _localVideoPlayer.srcObject = new MediaStream([_videoTrack]);
-                $(_localVideoPlayer).show();
-                currtrack = _videoTrack;
-            }
-        }
-        else
-        {
-            if (_videoTrack)
-                $("#btnStartStopCam").trigger('click');
-
-            if (_screenTrack) {
-                _localVideoPlayer.srcObject = new MediaStream([_screenTrack]);
-                $(_localVideoPlayer).show();
-                currtrack = _screenTrack;
-            }
-        }
-
-        if (currtrack && connection)
-        {
-            if (_rtpVideoSender && _rtpVideoSender.track) {
-                _rtpVideoSender.replaceTrack(currtrack);
-            }
-            else {
-                _rtpVideoSender = connection.addTrack(currtrack);
-            }
-        }
-    }
-
-    async function _createConnection() {
-
-        if (connection)
+        if (IsConnectionAvailable()) {
+            //debugger;
+            console.log(connection.signalingState);
             return;
+        }
 
-        console.log('_createConnection');
+        console.log('_checkAndCreateConnection');
+
         connection = new RTCPeerConnection(null);
         connection.onicecandidate = function (event) {
             console.log('onicecandidate', event.candidate);
@@ -209,31 +206,38 @@ var Demo = (function () {
             await _createOffer();
         }
         connection.onconnectionstatechange = function (event) {
-            console.log('onconnectionstatechange', connection.connectionState)
-            if (connection.connectionState === "connected") {
-                alert('connected')
+
+            console.log('onconnectionstatechange', event.currentTarget.connectionState)
+            //alert(event.currentTarget.connectionState)
+            if (event.currentTarget.connectionState === "connected") {
+                console.log('connected')
+                $('.toolbox').show();
+            }
+            if (event.currentTarget.connectionState === "disconnected") {
+                console.log('disconnected');
+                Demo.closeConnection();
             }
         }
         // New remote media stream was added
         connection.ontrack = function (event) {
-            alert('hello');
-            if (!_removeVideoStream)
-                _removeVideoStream = new MediaStream();
+
+            if (!_remoteVideoStream)
+                _remoteVideoStream = new MediaStream();
 
             if (!_remoteAudioStream)
                 _remoteAudioStream = new MediaStream();
 
             if (event.streams.length > 0) {
-                //_removeVideoStream = event.streams[0];
+                //_remoteVideoStream = event.streams[0];
             }
 
             if (event.track.kind == 'video') {
-                _removeVideoStream.getVideoTracks().forEach(t => _removeVideoStream.removeTrack(t));
-                _removeVideoStream.addTrack(event.track);
-                _removeVideoStream.getTracks().forEach(t => console.log(t));
+                _remoteVideoStream.getVideoTracks().forEach(t => _remoteVideoStream.removeTrack(t));
+                _remoteVideoStream.addTrack(event.track);
+                _remoteVideoStream.getTracks().forEach(t => console.log(t));
 
                 _remoteVideoPlayer.srcObject = null;
-                _remoteVideoPlayer.srcObject = _removeVideoStream;
+                _remoteVideoPlayer.srcObject = _remoteVideoStream;
                 _remoteVideoPlayer.load();
                 $(_remoteVideoPlayer).show();
             }
@@ -245,22 +249,13 @@ var Demo = (function () {
                 _remoteAudioPlayer.load();
             }
         };
-
-        //if (_videoTrack) {
-        //    _rtpVideoSender = connection.addTrack(_videoTrack);
-        //}
-
-        //if (_screenTrack) {
-        //    _rtpVideoSender = connection.addTrack(_screenTrack);
-        //}
-
-        //if (_audioTrack) {
-        //    _rtpAudioSender = connection.addTrack(_audioTrack);
-        //}
     }
 
     async function _createOffer() {
+
+        await _checkAndCreateConnection();
         //alert('create offer fn called');
+        console.log('connection.signalingState:' + connection.signalingState);
         var offer = await connection.createOffer();
         await connection.setLocalDescription(offer);
         //Send offer to Server
@@ -270,20 +265,23 @@ var Demo = (function () {
         console.log('messag', message);
         message = JSON.parse(message);
 
-        if (message.rejected) {
+        if (message.userleft) {
+
+        }
+        else if (message.rejected) {
             alert('other user rejected');
         }
         else if (message.answer) {
             console.log('answer', message.answer);
             await connection.setRemoteDescription(new RTCSessionDescription(message.answer));
-            setLocalVideo(true);
+            console.log('connection', connection);
         }
         else if (message.offer) {
             console.log('offer', message.offer);
 
-            if (!connection) {
-                await _createConnection();
-            }
+            //if (!connection) {
+            await _checkAndCreateConnection();
+            //}
 
             await connection.setRemoteDescription(new RTCSessionDescription(message.offer));
             var answer = await connection.createAnswer();
@@ -292,9 +290,10 @@ var Demo = (function () {
         }
         else if (message.iceCandidate) {
             console.log('iceCandidate', message.iceCandidate);
-            if (!connection) {
-                await _createConnection();
-            }
+            //if (!connection) {
+            await _checkAndCreateConnection();
+            //}
+
             try {
                 await connection.addIceCandidate(message.iceCandidate);
             } catch (e) {
@@ -302,17 +301,52 @@ var Demo = (function () {
             }
         }
     }
+
+    function IsConnectionAvailable() {
+        if (connection &&
+            (connection.connectionState == "new"
+            || connection.connectionState == "connecting"
+            || connection.connectionState == "connected"
+            )) {
+            return true;
+        }
+        else
+            return false;
+    }
+
     return {
         init: async function (serverFn) {
             await _init(serverFn);
-            await startwithAudio();
+
         },
         ExecuteClientFn: async function (data) {
             await newMessageClientFn(data);
         },
         _initiateFirstConn: async function () {
             //await startwithAudio();
-            await _createConnection();
+            await _checkAndCreateConnection();
+            //await startwithAudio();
+        },
+        closeConnection: function () {
+            if (connection) {
+                connection.close();
+                connection = null;
+            }
+            if (_remoteAudioStream) {
+                _remoteVideoStream.getTracks().forEach(t => {
+                    if (t.stop)
+                        t.stop();
+                });
+
+                _remoteAudioStream = null;
+            }
+            if (_remoteVideoStream) {
+                _remoteVideoStream.getTracks().forEach(t => {
+                    if (t.stop)
+                        t.stop();
+                });
+                _remoteVideoStream = null;
+            }
         }
     }
 }());
