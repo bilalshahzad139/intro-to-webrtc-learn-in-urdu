@@ -47,8 +47,8 @@
         $(function () {
             const urlParams = new URLSearchParams(window.location.search);
             const user_id = urlParams.get('uid');
-            const meeting_id = urlParams.get('mid');
-            if (user_id == null || meeting_id == null) {
+            const meeting_id = 'TestingMeeting';// + urlParams.get('mid');
+            if (!user_id || !meeting_id) {
                 alert('user id or meeting id missing');
                 return;
             }
@@ -61,41 +61,57 @@
             $.connection.hub.url = 'https://localhost:44338/signalr/hubs';
             //$.connection.hub.url = 'https://webrtcss.azurewebsites.net/signalr/hubs';
 
-            var serverFn = function (data) {
-                hub.server.send(data);
+            var serverFn = function (data, to_connid, from_connid) {
+                hub.server.exchangeSDP(data, to_connid);
             };
 
-            hub.client.newMessage = async function (data) {
-                await Demo.ExecuteClientFn(data);
+            hub.client.reset = function () {
+                location.reload();
+            }
+            hub.client.exchangeSDP = async function (data, from_connid) {
+                //alert(from_connid);
+                await Demo.ExecuteClientFn(data, from_connid);
             };
 
-            hub.client.informAboutUsers = function (other_user_id) {
-
-                $('#other h2').text(other_user_id);
+            hub.client.informAboutNewConnection = function (other_user_id, connId) {
+                AddNewUser(other_user_id, connId);
+                Demo.createNewConnection(connId);
             };
 
-            hub.client.otherUserLeft = function () {
-                $('#other h2').text("");
-                Demo.closeConnection();
+            hub.client.informAboutConnectionEnd = function (connId) {
+                $('#' + connId).remove();
+                Demo.closeExistingConnection(connId);
             };
 
-            
             $.connection.hub.start(function () {
                 console.log('connected to signal server.');
             }).done(function () {
+
+                Demo.init(serverFn, $.connection.hub.id);
+
                 if (user_id != "" && meeting_id != "") {
-                    hub.server.connect(user_id, meeting_id).done(function (other_user) {
-                        if (other_user) {
-                            $('#other h2').text(other_user.user_id);
-                            Demo._initiateFirstConn();
+                    hub.server.connect(user_id, meeting_id).done(function (other_users) {
+                        $('#divUsers .other').remove();
+                        if (other_users) {
+                            for (var i = 0; i < other_users.length; i++) {
+                                AddNewUser(other_users[i].user_id, other_users[i].connectionId);
+                                Demo.createNewConnection(other_users[i].connectionId);
+                            }
                         }
                     });
                 }
             });
-
-            
-
-            Demo.init(serverFn);
+            $('#btnResetMeeting').on('click', function () {
+                hub.server.reset();
+            });
+            function AddNewUser(other_user_id, connId) {
+                var $newDiv = $('#otherTemplate').clone();
+                $newDiv = $newDiv.attr('id', connId).addClass('other');
+                $newDiv.find('h2').text(other_user_id);
+                $newDiv.find('video').attr('id', 'v_' + connId);
+                $newDiv.show();
+                $('#divUsers').append($newDiv);
+            }
         });
     </script>
 </head>
@@ -108,10 +124,10 @@
                 <video autoplay muted id="localVideoCtr" />
             </div>
         </div>
-        <div id="other" class="userbox">
+        <div id="otherTemplate" class="userbox" style="display:none">
             <h2></h2>
             <div>
-                <video autoplay muted id="remoteVideoCtr" />
+                <video autoplay muted id="remoteVideoCtr111" />
             </div>
         </div>
         <!--<audio autoplay controls id="localAudioCtr" ></audio>-->
@@ -122,20 +138,8 @@
         <button id="btnMuteUnmute">UnMute</button>
         <button id="btnStartStopCam">Start Camera</button>
         <button id="btnStartStopScreenshare">Screen Share</button>
+        <button id="btnResetMeeting">Reset Meeting</button>
     </div>
-
-    <!-- <video autoplay muted controls id="videoCtr" width="480" height="100"></video> -->
-    <!-- <video autoplay muted controls id="remoteVideoCtr" width="480" height="100"></video> -->
-    <!--<video autoplay muted controls id="videoCtrRec" width="100" height="100" style="display:none"></video>-->
-    <!-- <button id="startConnection">Start Connection</button> -->
-    <!--<button id="btnStartReco">Start Recording</button>
-    <button id="btnPauseReco" style="display:none">Pause</button>
-    <button id="btnResumeReco" style="display:none">Resume</button>
-    <button id="btnStopReco" style="display:none">Stop</button>
-
-    <a href="" id="downloadRecording" style="display:none">Download</a>-->
-    <!--<br>
-    <br>
-    <a href="../index.html">Home</a>-->
+    
 </body>
 </html>
