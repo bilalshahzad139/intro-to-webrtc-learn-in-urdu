@@ -5,17 +5,14 @@ var Demo = (function () {
     var peers_con_ids = [];
 
     var _remoteVideoStreams = [];
-    var _remoteAudioStream = new MediaStream();
+    var _remoteAudioStreams = [];
 
     var _localVideoPlayer;
-    //var _remoteVideoPlayer;
 
     var _rtpVideoSenders = [];
-    var _rtpAudioSender;
+    var _rtpAudioSenders = [];
 
     var _serverFn;
-    //var _localAudioPlayer;
-    var _remoteAudioPlayer;
 
     var VideoStates = { None: 0, Camera: 1, ScreenShare: 2 };
     var _videoState = VideoStates.None;
@@ -27,9 +24,6 @@ var Demo = (function () {
         _my_connid = myconnid;
         _serverFn = serFn;
         _localVideoPlayer = document.getElementById('localVideoCtr');
-        //_remoteVideoPlayer = document.getElementById('remoteVideoCtr');
-        //_localAudioPlayer = document.getElementById('localAudioCtr');
-        _remoteAudioPlayer = document.getElementById('remoteAudioCtr');
 
         eventBinding();
     }
@@ -49,17 +43,13 @@ var Demo = (function () {
             if (_isAudioMute) {
                 _audioTrack.enabled = true;
                 $(this).text("Mute");
-                if (!_rtpAudioSender && _audioTrack && IsConnectionAvailable())
-                    _rtpAudioSender = connection.addTrack(_audioTrack);
+                AddUpdateAudioVideoSenders(_audioTrack, _rtpAudioSenders);
             }
             else {
                 _audioTrack.enabled = false;
                 $(this).text("Unmute");
 
-                if (_rtpAudioSender && IsConnectionAvailable()) {
-                    connection.removeTrack(_rtpAudioSender);
-                    _rtpAudioSender = null;
-                }
+                RemoveAudioVideoSenders(_rtpAudioSenders);
             }
             _isAudioMute = !_isAudioMute;
 
@@ -93,12 +83,7 @@ var Demo = (function () {
             _localVideoPlayer.srcObject = null;
             $(_localVideoPlayer).hide();
 
-            RemoveVideoSender();
-
-            //if (_rtpVideoSenders && IsConnectionAvailable()) {
-            //    connection.removeTrack(_rtpVideoSenders);
-            //    _rtpVideoSenders = null;
-            //}
+            RemoveAudioVideoSenders(_rtpVideoSenders);
         }
 
         if (_newVideoState == VideoStates.None) {
@@ -148,10 +133,8 @@ var Demo = (function () {
                     _localVideoPlayer.srcObject = new MediaStream([_videoCamSSTrack]);
                     $(_localVideoPlayer).show();
 
-                    AddUpdateVideoSender(_videoCamSSTrack);
-
+                    AddUpdateAudioVideoSenders(_videoCamSSTrack, _rtpVideoSenders);
                 }
-
             }
         } catch (e) {
             console.log(e);
@@ -159,25 +142,23 @@ var Demo = (function () {
         }
     }
 
-    async function RemoveVideoSender() {
+    async function RemoveAudioVideoSenders(rtpSenders) {
         for (var con_id in peers_con_ids) {
-            debugger;
-            if (_rtpVideoSenders[con_id] && IsConnectionAvailable(peers_conns[con_id])) {
-                peers_conns[con_id].removeTrack(_rtpVideoSenders[con_id]);
-                _rtpVideoSenders[con_id] = null;
+            if (rtpSenders[con_id] && IsConnectionAvailable(peers_conns[con_id])) {
+                peers_conns[con_id].removeTrack(rtpSenders[con_id]);
+                rtpSenders[con_id] = null;
             }
         }
     }
 
-    async function AddUpdateVideoSender(track) {
+    async function AddUpdateAudioVideoSenders(track,rtpSenders) {
         for (var con_id in peers_con_ids) {
-            //var con_id = peers_con_ids[i];
             if (IsConnectionAvailable(peers_conns[con_id])) {
-                if (_rtpVideoSenders[con_id] && _rtpVideoSenders[con_id].track) {
-                    _rtpVideoSenders[con_id].replaceTrack(track);
+                if (rtpSenders[con_id] && rtpSenders[con_id].track) {
+                    rtpSenders[con_id].replaceTrack(track);
                 }
                 else {
-                    _rtpVideoSenders[con_id] = peers_conns[con_id].addTrack(track);
+                    rtpSenders[con_id] = peers_conns[con_id].addTrack(track);
                 }
             }
         }
@@ -205,12 +186,11 @@ var Demo = (function () {
     }
 
     async function createConnection(connid) {
-
         var connection = new RTCPeerConnection(null);
         connection.onicecandidate = function (event) {
             console.log('onicecandidate', event.candidate);
             if (event.candidate) {
-                _serverFn(JSON.stringify({ 'iceCandidate': event.candidate }), connid, _my_connid);
+                _serverFn(JSON.stringify({ 'iceCandidate': event.candidate }), connid);
             }
         }
         connection.onicecandidateerror = function (event) {
@@ -227,14 +207,11 @@ var Demo = (function () {
         connection.onconnectionstatechange = function (event) {
 
             console.log('onconnectionstatechange', event.currentTarget.connectionState)
-            //alert(event.currentTarget.connectionState)
             if (event.currentTarget.connectionState === "connected") {
                 console.log('connected')
-                $('.toolbox').show();
             }
             if (event.currentTarget.connectionState === "disconnected") {
                 console.log('disconnected');
-                //Demo.closeConnection(connection);
             }
         }
         // New remote media stream was added
@@ -243,8 +220,8 @@ var Demo = (function () {
             if (!_remoteVideoStreams[connid])
                 _remoteVideoStreams[connid] = new MediaStream();
 
-            if (!_remoteAudioStream)
-                _remoteAudioStream = new MediaStream();
+            if (!_remoteAudioStreams[connid])
+                _remoteAudioStreams[connid] = new MediaStream();
 
             if (event.streams.length > 0) {
                 //_remoteVideoStream = event.streams[0];
@@ -262,10 +239,11 @@ var Demo = (function () {
                 $(_remoteVideoPlayer).show();
             }
             else if (event.track.kind == 'audio') {
-                _remoteAudioStream.getVideoTracks().forEach(t => _remoteAudioStream.removeTrack(t));
-                _remoteAudioStream.addTrack(event.track);
+                var _remoteAudioPlayer = document.getElementById('a_' + connid)
+                _remoteAudioStreams[connid].getVideoTracks().forEach(t => _remoteAudioStreams[connid].removeTrack(t));
+                _remoteAudioStreams[connid].addTrack(event.track);
                 _remoteAudioPlayer.srcObject = null;
-                _remoteAudioPlayer.srcObject = _remoteAudioStream;
+                _remoteAudioPlayer.srcObject = _remoteAudioStreams[connid];
                 _remoteAudioPlayer.load();
             }
         };
@@ -275,7 +253,7 @@ var Demo = (function () {
 
         if (_videoState == VideoStates.Camera || _videoState == VideoStates.ScreenShare) {
             if (_videoCamSSTrack) {
-                AddUpdateVideoSender(_videoCamSSTrack);
+                AddUpdateAudioVideoSenders(_videoCamSSTrack, _rtpVideoSenders);
             }
         }
 
@@ -286,12 +264,11 @@ var Demo = (function () {
 
         //await createConnection();
         var connection = peers_conns[connid];
-
         console.log('connection.signalingState:' + connection.signalingState);
         var offer = await connection.createOffer();
         await connection.setLocalDescription(offer);
         //Send offer to Server
-        _serverFn(JSON.stringify({ 'offer': connection.localDescription }), connid, _my_connid);
+        _serverFn(JSON.stringify({ 'offer': connection.localDescription }), connid);
     }
     async function exchangeSDP(message, from_connid) {
         console.log('messag', message);
@@ -347,14 +324,14 @@ var Demo = (function () {
             peers_conns[connid].close();
             peers_conns[connid] = null;
         }
-        //if (_remoteAudioStream) {
-        //    _remoteVideoStream.getTracks().forEach(t => {
-        //        if (t.stop)
-        //            t.stop();
-        //    });
+        if (_remoteAudioStreams[connid]) {
+            _remoteAudioStreams[connid].getTracks().forEach(t => {
+                if (t.stop)
+                    t.stop();
+            });
+            _remoteAudioStreams[connid] = null;
+        }
 
-        //    _remoteAudioStream = null;
-        //}
         if (_remoteVideoStreams[connid]) {
             _remoteVideoStreams[connid].getTracks().forEach(t => {
                 if (t.stop)
@@ -366,14 +343,12 @@ var Demo = (function () {
     return {
         init: async function (serverFn, my_connid) {
             await _init(serverFn, my_connid);
-
         },
         ExecuteClientFn: async function (data, from_connid) {
             await exchangeSDP(data, from_connid);
         },
         createNewConnection: async function (connid) {
             await createConnection(connid);
-            //await _createOffer(connid);
         },
         closeExistingConnection: function (connid) {
             closeConnection(connid);

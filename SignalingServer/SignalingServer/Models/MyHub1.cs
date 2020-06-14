@@ -19,29 +19,23 @@ namespace WebApplication5.Models
     {
         public static List<UserConnectionData> _userConnections = new List<UserConnectionData>();
 
-        public Object Connect(String user_id,String meetingid)
+        public Object Connect(String dsiplayName, String meetingid)
         {
-            var obj = _userConnections.Where(p => p.user_id == user_id && p.meeting_id == meetingid).FirstOrDefault();
-            if(obj != null)
+            
+            _userConnections.Add(new UserConnectionData()
             {
-                obj.connectionId = Context.ConnectionId;
-            }
-            else
+                meeting_id = meetingid,
+                user_id = dsiplayName,
+                connectionId = Context.ConnectionId
+            });
+
+            var other_users = _userConnections.Where(p => p.meeting_id == meetingid && p.connectionId != Context.ConnectionId).ToList();
+            foreach (var v in other_users)
             {
-                _userConnections.Add(new UserConnectionData() { 
-                    meeting_id = meetingid,
-                    user_id = user_id,
-                    connectionId = Context.ConnectionId
-                });
-            }
-            var other_user = _userConnections.Where(p => p.meeting_id == meetingid && p.user_id != user_id).FirstOrDefault();
-            if(other_user != null)
-            {
-                Clients.Client(other_user.connectionId).informAboutUsers(user_id);
-                return other_user;
+                Clients.Client(v.connectionId).informAboutNewConnection(dsiplayName, Context.ConnectionId);
             }
 
-            return null;
+            return other_users;
             //var users = list.Select(p => p.user_id).ToList();
             //foreach (var v in list)
             //{
@@ -55,39 +49,24 @@ namespace WebApplication5.Models
 
             _userConnections.RemoveAll(p => p.connectionId == connectionId);
             var list = _userConnections.Where(p => p.meeting_id == meeting_id).ToList();
-            var users = list.Select(p => p.user_id).ToList();
+            
             foreach (var v in list)
             {
-                Clients.Client(v.connectionId).informAboutUsers(users);
+                Clients.Client(v.connectionId).informAboutConnectionEnd(connectionId);
             }
 
             return base.OnDisconnected(stopCalled);
         }
-        public void Send(string message)
+        public void ExchangeSDP(string message, String to_connid)
         {
-            var connectionId = Context.ConnectionId;
-            var connObj = _userConnections.Where(p => p.connectionId == connectionId).FirstOrDefault();
-
-            var list = _userConnections.Where(p => p.meeting_id == connObj.meeting_id && p.user_id != connObj.user_id).ToList();
-            foreach (var v in list)
-            {
-                Clients.Client(v.connectionId).newMessage(message);
-            }
+            var from_connId = Context.ConnectionId;
+            Clients.Client(to_connid).exchangeSDP(message, from_connId);
         }
 
-        public void userLeft()
+        public void reset()
         {
-            var connectionId = Context.ConnectionId;
-            var meeting_id = _userConnections.Where(p => p.connectionId == connectionId).Select(p => p.meeting_id).FirstOrDefault();
-
-            _userConnections.RemoveAll(p => p.connectionId == connectionId);
-            var list = _userConnections.Where(p => p.meeting_id == meeting_id).ToList();
-            var users = list.Select(p => p.user_id).ToList();
-            foreach (var v in list)
-            {
-                Clients.Client(v.connectionId).otherUserLeft();
-            }
-
+            _userConnections = new List<UserConnectionData>();
+            Clients.All.reset();
         }
     }
 }

@@ -35,19 +35,25 @@
 
     <script src="jquery-3.4.1.min.js"></script>
     <script src="jquery.signalR-2.2.2.min.js"></script>
-    <!--<script src="https://webrtcss.azurewebsites.net/signalr/hubs"></script>-->
-    <script src="https://localhost:44338/signalr/hubs"></script>
+    <script src="https://webrtcss.azurewebsites.net/signalr/hubs"></script>
+    <!--<script src="https://localhost:44338/signalr/hubs"></script>-->
     <!--<script src="video-stream-merger.js"></script>-->
     <script src="demo.js"></script>
 
     <script>
-        var connection_initiated = false;
-
 
         $(function () {
             const urlParams = new URLSearchParams(window.location.search);
-            const user_id = urlParams.get('uid');
-            const meeting_id = 'TestingMeeting';// + urlParams.get('mid');
+            var user_id = urlParams.get('uid');
+            if (!user_id) {
+                user_id = window.prompt('Enter your nick!');
+            }
+            
+            var meeting_id = urlParams.get('mid');
+            if (!meeting_id) {
+                meeting_id = 'TestingMeeting'
+            }
+            
             if (!user_id || !meeting_id) {
                 alert('user id or meeting id missing');
                 return;
@@ -58,10 +64,10 @@
             // Set up the SignalR connection
             $.connection.hub.logging = true;
             var hub = $.connection.webRtcHub;
-            $.connection.hub.url = 'https://localhost:44338/signalr/hubs';
-            //$.connection.hub.url = 'https://webrtcss.azurewebsites.net/signalr/hubs';
+            //$.connection.hub.url = 'https://localhost:44338/signalr/hubs';
+            $.connection.hub.url = 'https://webrtcss.azurewebsites.net/signalr/hubs';
 
-            var serverFn = function (data, to_connid, from_connid) {
+            var serverFn = function (data, to_connid) {
                 hub.server.exchangeSDP(data, to_connid);
             };
 
@@ -98,6 +104,7 @@
                                 Demo.createNewConnection(other_users[i].connectionId);
                             }
                         }
+                        $(".toolbox").show();
                     });
                 }
             });
@@ -109,9 +116,14 @@
                 $newDiv = $newDiv.attr('id', connId).addClass('other');
                 $newDiv.find('h2').text(other_user_id);
                 $newDiv.find('video').attr('id', 'v_' + connId);
+                $newDiv.find('audio').attr('id', 'a_' + connId);
                 $newDiv.show();
                 $('#divUsers').append($newDiv);
             }
+
+            $('#divUsers').on('dblclick', 'video', function () {
+                this.requestFullscreen();
+            });
         });
     </script>
 </head>
@@ -127,14 +139,15 @@
         <div id="otherTemplate" class="userbox" style="display:none">
             <h2></h2>
             <div>
-                <video autoplay muted id="remoteVideoCtr111" />
+                <video autoplay muted id="remoteVideoCtr111" ></video>
+                <audio autoplay controls style="display:none" id="remoteAudioCtr111"></audio>
             </div>
         </div>
         <!--<audio autoplay controls id="localAudioCtr" ></audio>-->
-        <audio autoplay controls style="display:none" id="remoteAudioCtr"></audio>
+        
     </div>
     <div style="clear: both;"></div>
-    <div class="toolbox">
+    <div class="toolbox" style="display:none">
         <button id="btnMuteUnmute">UnMute</button>
         <button id="btnStartStopCam">Start Camera</button>
         <button id="btnStartStopScreenshare">Screen Share</button>
