@@ -65,8 +65,32 @@ namespace WebApplication5.Models
 
         public void reset()
         {
-            _userConnections = new List<UserConnectionData>();
-            Clients.All.reset();
+            var connectionId = Context.ConnectionId;
+            var meetingid = _userConnections.Where(p => p.connectionId == connectionId).Select(p => p.meeting_id).FirstOrDefault();
+
+            var list = _userConnections.Where(p => p.meeting_id == meetingid).ToList();
+            _userConnections.RemoveAll(p => p.meeting_id == meetingid);
+            
+            foreach(var v in list)
+            {
+                Clients.Client(v.connectionId).reset();
+            }
+        }
+
+        public void sendMessage(string message)
+        {
+            var connectionId = Context.ConnectionId;
+            var obj = _userConnections.Where(p => p.connectionId == connectionId).FirstOrDefault();
+            var meetingid = obj.meeting_id;
+            var from = obj.user_id;
+
+            var list = _userConnections.Where(p => p.meeting_id == meetingid).ToList();
+
+            foreach (var v in list)
+            {   
+                Clients.Client(v.connectionId).showChatMessage(from, message, DateTime.Now.ToString("MM/dd/yyyy hh:mm tt"));
+            }
+
         }
     }
 }

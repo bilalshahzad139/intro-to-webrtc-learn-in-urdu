@@ -1,6 +1,4 @@
-
 <!DOCTYPE html>
-
 <html>
 <head>
     <style>
@@ -16,14 +14,14 @@
             float: left;
         }
 
-            .userbox video {
-                display: inline-block;
-                border: 1px solid red;
-                margin: 0;
-                padding: 0;
-                width: 450px;
-                height: 300px;
-            }
+        .userbox video {
+            display: inline-block;
+            border: 1px solid red;
+            margin: 0;
+            padding: 0;
+            width: 450px;
+            height: 300px;
+        }
 
         .toolbox {
         }
@@ -35,25 +33,25 @@
 
     <script src="jquery-3.4.1.min.js"></script>
     <script src="jquery.signalR-2.2.2.min.js"></script>
-    <script src="https://webrtcss.azurewebsites.net/signalr/hubs"></script>
-    <!--<script src="https://localhost:44338/signalr/hubs"></script>-->
+    <!--<script src="https://webrtcss.azurewebsites.net/signalr/hubs"></script>-->
+    <script src="https://localhost:44338/signalr/hubs"></script>
     <!--<script src="video-stream-merger.js"></script>-->
     <script src="demo.js"></script>
 
     <script>
-
+        var meeting_id = "";
         $(function () {
             const urlParams = new URLSearchParams(window.location.search);
             var user_id = urlParams.get('uid');
             if (!user_id) {
                 user_id = window.prompt('Enter your nick!');
             }
-            
-            var meeting_id = urlParams.get('mid');
+
+            meeting_id = urlParams.get('mid');
             if (!meeting_id) {
                 meeting_id = 'TestingMeeting'
             }
-            
+
             if (!user_id || !meeting_id) {
                 alert('user id or meeting id missing');
                 return;
@@ -64,8 +62,8 @@
             // Set up the SignalR connection
             $.connection.hub.logging = true;
             var hub = $.connection.webRtcHub;
-            //$.connection.hub.url = 'https://localhost:44338/signalr/hubs';
-            $.connection.hub.url = 'https://webrtcss.azurewebsites.net/signalr/hubs';
+            $.connection.hub.url = 'https://localhost:44338/signalr/hubs';
+            //$.connection.hub.url = 'https://webrtcss.azurewebsites.net/signalr/hubs';
 
             var serverFn = function (data, to_connid) {
                 hub.server.exchangeSDP(data, to_connid);
@@ -89,6 +87,11 @@
                 Demo.closeExistingConnection(connId);
             };
 
+            hub.client.showChatMessage = function (from, message, time) {
+                var div = $("<div>").text(from + '(' + time + '):' + message);
+                $('#messages').append(div);
+            }
+
             $.connection.hub.start(function () {
                 console.log('connected to signal server.');
             }).done(function () {
@@ -108,9 +111,16 @@
                     });
                 }
             });
+
             $('#btnResetMeeting').on('click', function () {
                 hub.server.reset();
             });
+
+            $('#btnsend').on('click', function () {
+                hub.server.sendMessage($('#msgbox').val());
+                $('#msgbox').val('');
+            });
+
             function AddNewUser(other_user_id, connId) {
                 var $newDiv = $('#otherTemplate').clone();
                 $newDiv = $newDiv.attr('id', connId).addClass('other');
@@ -129,23 +139,29 @@
 </head>
 <body>
     <h1 id='meetingname'></h1>
-    <div id='divUsers'>
-        <div id="me" class="userbox">
-            <h2></h2>
-            <div>
-                <video autoplay muted id="localVideoCtr" />
-            </div>
+    <div>
+        <div style="width:200px;height:300px;float:left;overflow-y: scroll;" id="messages">
+            <div><input type="text" id="msgbox" /><button id="btnsend">Send</button></div>
         </div>
-        <div id="otherTemplate" class="userbox" style="display:none">
-            <h2></h2>
-            <div>
-                <video autoplay muted id="remoteVideoCtr111" ></video>
-                <audio autoplay controls style="display:none" id="remoteAudioCtr111"></audio>
+        <div id='divUsers'>
+            <div id="me" class="userbox">
+                <h2></h2>
+                <div>
+                    <video autoplay muted id="localVideoCtr" />
+                </div>
             </div>
+            <div id="otherTemplate" class="userbox" style="display:none">
+                <h2></h2>
+                <div>
+                    <video autoplay muted id="remoteVideoCtr111"></video>
+                    <audio autoplay controls style="display:none" id="remoteAudioCtr111"></audio>
+                </div>
+            </div>
+            <!--<audio autoplay controls id="localAudioCtr" ></audio>-->
+
         </div>
-        <!--<audio autoplay controls id="localAudioCtr" ></audio>-->
-        
     </div>
+
     <div style="clear: both;"></div>
     <div class="toolbox" style="display:none">
         <button id="btnMuteUnmute">UnMute</button>
@@ -153,6 +169,6 @@
         <button id="btnStartStopScreenshare">Screen Share</button>
         <button id="btnResetMeeting">Reset Meeting</button>
     </div>
-    
+
 </body>
 </html>
